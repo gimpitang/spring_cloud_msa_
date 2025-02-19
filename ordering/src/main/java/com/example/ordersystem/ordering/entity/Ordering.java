@@ -1,7 +1,6 @@
 package com.example.ordersystem.ordering.entity;
 
 import com.example.ordersystem.common.entity.BaseTimeEntity;
-import com.example.ordersystem.member.entity.Member;
 import com.example.ordersystem.ordering.dtos.OrderDetailResDto;
 import com.example.ordersystem.ordering.dtos.OrderingListResDto;
 import jakarta.persistence.*;
@@ -24,9 +23,7 @@ public class Ordering extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name="member_id")
-    private Member member;
+    private String memberEmail;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
@@ -44,7 +41,6 @@ public class Ordering extends BaseTimeEntity {
         for(OrderDetail od : this.getOrderDetails()){
             OrderDetailResDto orderDetailResDto = OrderDetailResDto.builder()
                     .detailId(od.getId())
-                    .productName(od.getProduct().getName())
                     .count(od.getQuantity())
                     .build();
             orderDetailResDtos.add(orderDetailResDto);
@@ -52,7 +48,7 @@ public class Ordering extends BaseTimeEntity {
         OrderingListResDto orderDto = OrderingListResDto
                 .builder()
                 .orderId(this.getId())
-                .memberEmail(this.getMember().getEmail())
+                .memberEmail(this.memberEmail)
                 .orderStatus(this.getOrderStatus().toString())
                 .orderDetails(orderDetailResDtos)
                 .build();

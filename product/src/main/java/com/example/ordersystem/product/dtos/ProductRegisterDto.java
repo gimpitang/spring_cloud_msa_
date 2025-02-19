@@ -1,6 +1,5 @@
 package com.example.ordersystem.product.dtos;
 
-import com.example.ordersystem.member.entity.Member;
 import com.example.ordersystem.product.entity.Product;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -19,13 +18,13 @@ public class ProductRegisterDto {
     private MultipartFile productImage;
 
 
-    public Product toEntity(Member member) {
+    public Product toEntity(String email) {
         return Product.builder()
                 .name(this.name)
                 .category(this.category)
                 .price(this.price)
                 .stockQuantity(this.stockQuantity)
-                .member(member)
+                .memberEmail(email)
                 .build();
     }
 }

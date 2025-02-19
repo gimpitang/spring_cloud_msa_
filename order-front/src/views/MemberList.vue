@@ -45,7 +45,7 @@ export default{
 
         // 여기서 에러가 스쳐감
         try{
-            const response = await axios.get(`${process.env.VUE_APP_API_BASE_URL}/member/list`)
+            const response = await axios.get(`${process.env.VUE_APP_API_BASE_URL}/member-service/member/list`)
             this.memberList = response.data;
         }catch(e){
             console.log(e)

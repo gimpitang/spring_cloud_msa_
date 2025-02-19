@@ -1,33 +1,40 @@
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+
 spring:
-  redis:
-    host: localhost
-    port: 6379
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
-    virtual-host: /
-  datasource:
-    driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://localhost:3306/ordersystem
-    username: root
-    password: 1234
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: 'http://localhost:3000'
+            allowedMethods: '*'
+            allowedHeaders: '*'
+            allowedCredentials: true
 
-  jpa:
-    database: mysql
-    database-platform: org.hibernate.dialect.MariaDBDialect
-    generate-ddl: true
-    hibernate:
-      ddl-auto: validate
-    show-sql: true
+      routes:
+        - id: member-service
+          predicates:
+            - Path=/member-service/**
+          filters:
+#            첫번째 접두어를 제거 후 member-service로 전달하겠다는 뜻(/member-service/member/list 에서 /member/list 이렇게만 보낸다)
+            - StripPrefix=1
+          uri: lb://member-service
 
-jwt:
-  expiration: 50000
-  # 인코딩 된 32자 이상 필요.(특수문자 사용 안됨)
-  # beyoundaccesstokensecretkeybeyoundaccesstokensecretkeybeyoundaccesstokensecretkey
-  secretKey: YmV5b3VuZGFjY2Vzc3Rva2Vuc2VjcmV0a2V5YmV5b3VuZGFjY2Vzc3Rva2Vuc2VjcmV0a2V5YmV5b3VuZGFjY2Vzc3Rva2Vuc2VjcmV0a2V5
+        - id: ordering-service
+          predicates:
+              - Path=/ordering-service/**
+          filters:
+              - StripPrefix=1
+          uri: lb://ordering-service
 
-  # beyoundrefreshtokensecretkeybeyoundrefreshtokensecretkeybeyoundrefreshtokensecretkey
-  expirationRt: 288000
-  secretKeyRt: YmV5b3VuZHJlZnJlc2h0b2tlbnNlY3JldGtleWJleW91bmRyZWZyZXNodG9rZW5zZWNyZXRrZXliZXlvdW5kcmVmcmVzaHRva2Vuc2VjcmV0a2V5
+        - id: product-service
+          predicates:
+              - Path=/product-service/**
+          filters:
+              - StripPrefix=1
+          uri: lb://product-service

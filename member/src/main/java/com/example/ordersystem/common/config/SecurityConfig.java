@@ -31,8 +31,9 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
 
         return httpSecurity
-                //      spring security 에서 cors 정책 지정
-                .cors(c -> c.configurationSource(corsConfiguration()))
+                // gateway(yml)에서 cors 공통처리했으므로 제외함.
+//                //      spring security 에서 cors 정책 지정
+//                .cors(c -> c.configurationSource(corsConfiguration()))
                 .csrf(AbstractHttpConfigurer::disable) //       csrf 비활성화
                 .httpBasic(AbstractHttpConfigurer::disable) //      http basic 보안방식 비뢀성화
                 //      세션로그인 방식 사용하지 않는다는 것을 의미
@@ -44,17 +45,18 @@ public class SecurityConfig {
                 .build();
     }
 
-    private CorsConfigurationSource corsConfiguration() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
-        configuration.setAllowedMethods(Arrays.asList("*"));            //     모든 HTTP메서드(get, post, patch 등) 허용
-        configuration.setAllowedHeaders(Arrays.asList("*"));            //     모든 헤더 허용
-        configuration.setAllowCredentials(true);                        //     자격증명 허용(인증처리 하겠다는 뜻)
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);  //      모든 url 패턴에 대해 cors 설정 적용
-
-        return source;
-    }
+    // gateway(yml)에서 cors 공통처리했으므로 제외함.
+//    private CorsConfigurationSource corsConfiguration() {
+//        CorsConfiguration configuration = new CorsConfiguration();
+//        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
+//        configuration.setAllowedMethods(Arrays.asList("*"));            //     모든 HTTP메서드(get, post, patch 등) 허용
+//        configuration.setAllowedHeaders(Arrays.asList("*"));            //     모든 헤더 허용
+//        configuration.setAllowCredentials(true);                        //     자격증명 허용(인증처리 하겠다는 뜻, Authorization)
+//        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+//        source.registerCorsConfiguration("/**", configuration);  //      모든 url 패턴에 대해 cors 설정 적용
+//
+//        return source;
+//    }
 
     @Bean
     public PasswordEncoder makePassword() {

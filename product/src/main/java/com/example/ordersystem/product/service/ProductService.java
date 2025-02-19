@@ -1,8 +1,6 @@
 package com.example.ordersystem.product.service;
 
 import com.example.ordersystem.common.service.StockInventoryService;
-import com.example.ordersystem.member.entity.Member;
-import com.example.ordersystem.member.repository.MemberRepository;
 import com.example.ordersystem.product.dtos.ProductRegisterDto;
 import com.example.ordersystem.product.dtos.ProductResDto;
 import com.example.ordersystem.product.dtos.ProductSearchDto;
@@ -39,17 +37,11 @@ import java.util.List;
 @Transactional
 public class ProductService {
     private final ProductRepository productRepository;
-    private final MemberRepository memberRepository;
-    private final S3Client s3Client;
-    @Value("${cloud.aws.s3.bucket}")
-    private String bucket;
     private final StockInventoryService stockInventoryService;
 
 
-    public ProductService(ProductRepository productRepository, MemberRepository memberRepository, S3Client s3Client, StockInventoryService stockInventoryService) {
+    public ProductService(ProductRepository productRepository,  StockInventoryService stockInventoryService) {
         this.productRepository = productRepository;
-        this.memberRepository = memberRepository;
-        this.s3Client = s3Client;
         this.stockInventoryService = stockInventoryService;
     }
 
@@ -58,10 +50,9 @@ public class ProductService {
 
             //      member 조회
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            Member member = memberRepository.findByEmail(authentication.getName()).orElseThrow(() -> new EntityNotFoundException("Member is not found"));
 
             //rdb 에 재고 값 추가
-            Product product = productRepository.save(dto.toEntity(member));
+            Product product = productRepository.save(dto.toEntity(authentication.getName()));
             //redis에도 재고 값 추가!
             stockInventoryService.increaseStock(product.getId(),dto.getStockQuantity());
 
@@ -76,16 +67,16 @@ public class ProductService {
             Path path = Paths.get("C:/Users/Playdata/Desktop/tmp" , fileName);
             Files.write(path, bytes, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 
-            //      저장을 위한 request 객체
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(bucket)
-                    .key(fileName)
-                    .build();
-
-            //      저장 실행
-            s3Client.putObject(putObjectRequest, RequestBody.fromFile(path));
-            String s3Url =s3Client.utilities().getUrl(a->a.bucket(bucket).key(fileName)).toExternalForm();
-            product.updateImagePath(s3Url);
+//            //      저장을 위한 request 객체
+//            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+//                    .bucket(bucket)
+//                    .key(fileName)
+//                    .build();
+//
+//            //      저장 실행
+//            s3Client.putObject(putObjectRequest, RequestBody.fromFile(path));
+//            String s3Url =s3Client.utilities().getUrl(a->a.bucket(bucket).key(fileName)).toExternalForm();
+//            product.updateImagePath(s3Url);
             return product;
         }catch (IOException e){
             //      redis는 트랜잭션의 대상이 아니므로, 에러시 별도의 decrease 작업이 필요함.

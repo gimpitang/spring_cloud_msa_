@@ -1,8 +1,6 @@
 package com.example.ordersystem.product.entity;
 
 import com.example.ordersystem.common.entity.BaseTimeEntity;
-import com.example.ordersystem.member.dtos.MemberResDto;
-import com.example.ordersystem.member.entity.Member;
 import com.example.ordersystem.product.dtos.ProductResDto;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -26,9 +24,7 @@ public class Product extends BaseTimeEntity {
     private Integer stockQuantity;
     private String imagePath;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id")
-    private Member member;
+    private String memberEmail;
 
 
     public ProductResDto fromEntity() {
