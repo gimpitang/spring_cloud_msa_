@@ -12,10 +12,13 @@ import com.example.ordersystem.ordering.entity.Ordering;
 import com.example.ordersystem.ordering.repository.OrderingDetailRepository;
 import com.example.ordersystem.ordering.repository.OrderingRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.http.*;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,18 +32,24 @@ public class OrderingService {
     private final StockInventoryService stockInventoryService;
     private final StockRabbitmqService stockRabbitmqService;
     private final SseController sseController;
+    private final RestTemplate restTemplate;
+    private final ProductFeign productFeign;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public OrderingService(OrderingRepository orderingRepository, OrderingDetailRepository orderingDetailRepository, StockInventoryService stockInventoryService, StockRabbitmqService stockRabbitmqService, SseController sseController) {
+    public OrderingService(OrderingRepository orderingRepository, OrderingDetailRepository orderingDetailRepository, StockInventoryService stockInventoryService, StockRabbitmqService stockRabbitmqService, SseController sseController, RestTemplate restTemplate, ProductFeign productFeign, KafkaTemplate<String, Object> kafkaTemplate) {
         this.orderingRepository = orderingRepository;
         this.orderingDetailRepository = orderingDetailRepository;
         //      재고 줄여주는 로직 사용하기 위해 의존성 주입
         this.stockInventoryService = stockInventoryService;
         this.stockRabbitmqService = stockRabbitmqService;
         this.sseController = sseController;
+        this.restTemplate = restTemplate;
+        this.productFeign = productFeign;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
 
-    synchronized public Ordering orderCreate(List<OrderCreateDto> dtos){
+    public Ordering orderCreate(List<OrderCreateDto> dtos) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
         Ordering ordering = Ordering.builder()
@@ -49,29 +58,90 @@ public class OrderingService {
 
         for (OrderCreateDto dto : dtos) {
             //      product 서버에 api요청을 통해 product 객체를 받아와야함. --> 동기적 처리 필수
-            int stockQuantity =0;
-            //      배타락 걸어버림 findById 에서 로드가 걸려 동시성 이슈가 생기기때문에 배타락을 걸어놓는다
-//            Product product = productRepository.findByIdForUpdate(dto.getProductId()).orElseThrow(()->new EntityNotFoundException("product not found"));
+            String productGetUrl = "http://product-service/product/" + dto.getProductId();
+
+            // response 에 넣을 토큰 생성
+            String token = SecurityContextHolder.getContext().getAuthentication().getCredentials().toString();
+
+            HttpHeaders headers = new HttpHeaders();
+            //     베어러 토큰 형식의 token
+            headers.set("Authorization", token);
+            HttpEntity<String> httpEntity = new HttpEntity<>(headers);
+
+            // url, 요청형식, token, 응답 형태
+            ResponseEntity<ProductDto> response = restTemplate.exchange(productGetUrl, HttpMethod.GET, httpEntity, ProductDto.class);
+
+            ProductDto productDto = response.getBody();
+            System.out.println("productDto 는" + productDto);
             int quantity = dto.getProductCount();
             //      동시성 이슈 고려 안한 코드
-            if(stockQuantity < quantity){
+            if (productDto.getStockQuantity() < quantity) {
                 throw new IllegalArgumentException("product not enough");
-            }else {
+            } else {
                 //재고 감소 api 요청을 product서버에 보내야함. -> 비동기 처리 가능.
+                String productUpdateStockUrl = "http://product-service/product/updatestock";
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<ProductUpdateStockDto> updateEntity = new HttpEntity<>(
+                        //      body부분
+                        ProductUpdateStockDto.builder()
+                                .productId(dto.getProductId())
+                                .productQuantity(dto.getProductCount())
+                                .build()
+                        , headers
+                );
+                restTemplate.exchange(productUpdateStockUrl, HttpMethod.PUT, updateEntity, void.class);
+
+                OrderDetail orderDetail = OrderDetail.builder()
+                        .ordering(ordering)
+                        // 받아온 product 객체를 통해 id 값 세팅
+                        .productId(dto.getProductId())
+                        .quantity(dto.getProductCount())
+                        .build();
+                ordering.getOrderDetails().add(orderDetail);
             }
-
-// ;
-
-
-            OrderDetail orderDetail = OrderDetail.builder()
-                    .ordering(ordering)
-                    // 받아온 product 객체를 통해 id 값 세팅
-                    .productId(dto.getProductId())
-                    .quantity(dto.getProductCount())
-                    .build();
-            ordering.getOrderDetails().add(orderDetail);
+            orderingRepository.save(ordering);
         }
-        orderingRepository.save(ordering);
+
+
+            //----공통
+            return ordering;
+    }
+
+    public Ordering orderFeignKafkaCreate(List<OrderCreateDto> dtos) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        Ordering ordering = Ordering.builder()
+                .memberEmail(email)
+                .build();
+
+        for (OrderCreateDto dto : dtos) {
+            //      product 서버에 feign 클라이언트를 통한 api 요청 조회
+            ProductDto productDto = productFeign.getProductById(dto.getProductId());
+
+
+
+            int quantity = dto.getProductCount();
+            //      동시성 이슈 고려 안한 코드
+            if (productDto.getStockQuantity() < quantity) {
+                throw new IllegalArgumentException("product not enough");
+            } else {
+                //재고 감소 api 요청을 product서버에 보내야함. -> kafka 에 메시지 발행.
+//                productFeign.updateProductStock(ProductUpdateStockDto.builder().productId(dto.getProductId()).productQuantity(dto.getProductCount()).build());
+                ProductUpdateStockDto updateDto = ProductUpdateStockDto.builder()
+                        .productId(dto.getProductId()).productQuantity(dto.getProductCount())
+                        .build();
+                kafkaTemplate.send("update-stock-topic",updateDto);
+            }
+                OrderDetail orderDetail = OrderDetail.builder()
+                        .ordering(ordering)
+                        // 받아온 product 객체를 통해 id 값 세팅
+                        .productId(dto.getProductId())
+                        .quantity(dto.getProductCount())
+                        .build();
+                ordering.getOrderDetails().add(orderDetail);
+
+            orderingRepository.save(ordering);
+        }
 
 
         //----공통

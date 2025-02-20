@@ -3,6 +3,7 @@ package com.example.ordersystem.product.controller;
 import com.example.ordersystem.product.dtos.ProductRegisterDto;
 import com.example.ordersystem.product.dtos.ProductResDto;
 import com.example.ordersystem.product.dtos.ProductSearchDto;
+import com.example.ordersystem.product.dtos.ProductUpdateStockDto;
 import com.example.ordersystem.product.entity.Product;
 import com.example.ordersystem.product.service.ProductService;
 import org.springframework.data.domain.Page;
@@ -36,4 +37,20 @@ public class ProductController {
 
         return new ResponseEntity<>(productResDtos, HttpStatus.OK);
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> productDetail(@PathVariable Long id){
+        ProductResDto productResDto = productService.productDetail(id);
+
+
+        return new ResponseEntity<>(productResDto, HttpStatus.OK);
+    }
+
+    @PutMapping("/updatestock")
+    //  한 건의 주문에 여러 아이템의 주문이 들어가는데 건건이 조회를 해야하는 로직이라 좀 비효율 적이긴함.
+    public ResponseEntity<?> productStockUpdate (@RequestBody ProductUpdateStockDto dto){
+        Product product = productService.updateStockQuantity(dto);
+        return new ResponseEntity<>(product.getId(),HttpStatus.OK);
+    }
+
 }

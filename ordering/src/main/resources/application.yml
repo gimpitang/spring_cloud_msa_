@@ -25,6 +25,10 @@ spring:
 #  memberService라는 이름으로 eureka에 등록을 하겠다
   application:
     name: ordering-service
+#    kafka 설정 정보
+  kafka:
+    kafka-server: localhost:9092
+
 
 #유레카를 바라보자! 라고 하는 설정
 eureka:

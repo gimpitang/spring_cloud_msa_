@@ -4,8 +4,11 @@ import com.example.ordersystem.common.service.StockInventoryService;
 import com.example.ordersystem.product.dtos.ProductRegisterDto;
 import com.example.ordersystem.product.dtos.ProductResDto;
 import com.example.ordersystem.product.dtos.ProductSearchDto;
+import com.example.ordersystem.product.dtos.ProductUpdateStockDto;
 import com.example.ordersystem.product.entity.Product;
 import com.example.ordersystem.product.repository.ProductRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -15,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -111,5 +115,31 @@ public class ProductService {
         };
         Page<Product> productList = productRepository.findAll(specification, pageable);
         return productList.map(p->p.fromEntity());
+    }
+
+    public ProductResDto productDetail(Long id){
+        Product product = productRepository.findById(id).orElseThrow(()-> new EntityNotFoundException("없는 아이디 입니다."));
+        return product.fromEntity();
+    }
+
+    public Product updateStockQuantity(ProductUpdateStockDto dto){
+        Product product = productRepository.findById(dto.getProductId()).orElseThrow(()-> new EntityNotFoundException("없는 상품"));
+        product.updateStockQuantity(dto.getProductQuantity());
+        return product;
+    }
+
+    @KafkaListener(topics = "update-stock-topic", groupId = "product-group", containerFactory = "kafkaListener")
+    public void productConsumer(String message){
+        System.out.println("Consumer message received : " + message);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        try {
+
+            ProductUpdateStockDto dto = objectMapper.readValue(message, ProductUpdateStockDto.class);
+            this.updateStockQuantity(dto);
+
+        }catch (JsonProcessingException e){
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -46,6 +46,13 @@ dependencies {
 
 	//eureka 관련 의존성 추가(얘는 eureka를 쓰는 놈이기 때문에 맨 마지막 부분 server을 client로 변경
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+	//msa 간에 통신을 위한 open-feign의존성 추가
+	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
+	// 재고 감소 비동기 처리를 위한 kafka 관련 의존성 추가
+	implementation 'org.springframework.kafka:spring-kafka'
+
 }
 
 dependencyManagement{

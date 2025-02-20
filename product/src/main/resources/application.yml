@@ -25,6 +25,14 @@ spring:
 #  memberService라는 이름으로 eureka에 등록을 하겠다
   application:
     name: product-service
+  #    kafka 설정 정보(consumer의 설정 정보)
+  kafka:
+    kafka-server: localhost:9092
+    consumer:
+#      grout-id 는 컨슈머 그룹을 식별하는 ID 로써 , 동일한 그룹 ID를 가진 컨슈머들은 메시지를 분담해서 consume.
+      group-id: product-group
+#      가장 처음들어온 메시지부터 읽기 시작.(latest: 현시점 이후로 들어오는 메시지만 읽음)
+      auto-offset-reset: earliest
 
 #유레카를 바라보자! 라고 하는 설정
 eureka:
